@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from fastapi import APIRouter
 from realtime import Optional
-from db_config import supabase
+from db_config import get_supabase
 from dotenv import load_dotenv
 import os
 from argon2 import PasswordHasher, exceptions 
@@ -13,7 +13,6 @@ import jwt
 import httpx
 from fastapi.responses import RedirectResponse
 import anyio 
-from db_config import get_supabase
 
 
 router = APIRouter()
@@ -106,6 +105,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     # 2. Run the blocking Supabase database call inside a safe, unblocked threadpool worker
     # This prevents the underlying HTTP/2 transport from clashing with the event loop
     try:
+        supabase = get_supabase()
         response = await anyio.to_thread.run_sync(
             lambda: supabase.table("users")
             .select("email", "full_name", "degree", "role", "google_access_token")
@@ -125,6 +125,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     
 @router.post("/register", response_model=Token)
 def register_user(user: UserCreate):
+    supabase = get_supabase()
     if supabase.table("users").select("*").eq("email", user.email).limit(1).execute().data:
         raise HTTPException(status_code=400, detail="User Already Exists", headers={"WWW-Authenticate": "Bearer"})
     elif user.password == "OAUTH_USER":
@@ -146,6 +147,7 @@ def register_user(user: UserCreate):
 
 @router.post("/login", response_model=Token)
 def login_for_acess_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    supabase = get_supabase()
     user = supabase.table("users").select("*").eq("email", form_data.username.lower()).limit(1).execute().data
     if not user or not verify_pwd(form_data.password, user[0]["password"]):
         raise HTTPException(
@@ -233,10 +235,12 @@ async def auth_google(code: str):
 
 @router.get("/profile")
 def get_profile(current_user = Depends(get_current_user)):
+    supabase = get_supabase()
     return current_user[0]
 
 @router.get("/emailexists/{email}")
 def check_email_exists(email):
+    supabase = get_supabase()
     if supabase.table("users").select("*").eq("email", email).limit(1).execute().data:
         return True
     else:
@@ -246,6 +250,7 @@ def check_email_exists(email):
 @router.patch("/profile")
 async def update_profile(updates: UserUpdate, current_user = Depends(get_current_user)):
     try:
+        supabase = get_supabase()
         user_email = current_user[0]["email"]  # get email from the authenticated user
         await anyio.to_thread.run_sync(
             lambda: supabase.table("users")
