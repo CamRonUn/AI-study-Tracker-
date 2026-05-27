@@ -169,69 +169,6 @@ async def login_google():
         f"https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={google_client_id}&redirect_uri={google_redirect_uri}&scope={scope}&access_type=offline&prompt=consent"
     )
 
-@router.get("/google/callback")
-async def auth_google(code: str):
-    
-    # STEP 1: Exchange the 'code' for an 'access_token'
-    token_url = "https://oauth2.googleapis.com/token"
-    data = {
-        "code": code,
-        "client_id": google_client_id,
-        "client_secret": google_client_secret,
-        "redirect_uri": google_redirect_uri,
-        "grant_type": "authorization_code",
-    }
-
-    async with httpx.AsyncClient() as client:
-        # We send the code to Google
-        token_response = await client.post(token_url, data=data)
-        token_json = token_response.json()
-        
-        if "error" in token_json:
-            raise HTTPException(status_code=400, detail=token_json.get("error_description"))
-            
-        access_token = token_json.get("access_token")
-
-        # STEP 2: Use the access_token to get user info (the part you were missing)
-        user_info_url = "https://www.googleapis.com/oauth2/v3/userinfo"
-        user_info_response = await client.get(user_info_url, headers={'Authorization': f'Bearer {access_token}'})
-        user_info = user_info_response.json()
-
-    # Now user_info is defined and contains the data!
-    google_id = user_info.get("sub") 
-    email = user_info.get("email").lower()
-    full_name = user_info.get("name")
-
-    # --- Your existing Supabase logic starts here ---
-    user_query = supabase.table("users").select("*").eq("google_id", google_id).limit(1).execute()
-    
-    if not user_query.data:
-        email_query = supabase.table("users").select("*").eq("email", email).limit(1).execute()
-        if email_query.data:
-            supabase.table("users").update({"google_id": google_id, "google_access_token": access_token}).eq("email", email).execute()
-            user_record = email_query.data[0]
-        else:
-            new_user = {
-                "email": email,
-                "google_id": google_id,
-                "full_name": full_name,
-                "degree": "Pending",
-                "password": "OAUTH_USER",
-                "role": "user",
-                "google_id": google_id
-            }
-            insert_result = supabase.table("users").insert(new_user).execute()
-            user_record = insert_result.data[0]
-    else:
-        supabase.table("users").update({"google_id": google_id, "google_access_token": access_token}).eq("email", email).execute()
-        user_record = user_query.data[0]
-
-    access_token_expires = timedelta(minutes=token_expire_minutes)
-    app_access_token = create_acess_token(
-        data={"sub": user_record["email"]}, expires_delta=access_token_expires
-    )
-
-    return {"access_token": app_access_token, "token_type": "bearer"}
 
 @router.get("/profile")
 def get_profile(current_user = Depends(get_current_user)):

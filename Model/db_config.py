@@ -49,3 +49,20 @@ def get_supabase() -> Client:
         
     _supabase_client = create_client(url, key)
     return _supabase_client
+
+def get_supabase_admin() -> Client:
+    """Safely gets or creates the cached Admin Supabase client."""
+    global _supabase_admin_client
+    if _supabase_admin_client is not None:
+        return _supabase_admin_client
+        
+    url = os.environ.get("SUPABASE_URL", "").strip().strip("'").strip('"')
+    service_key = os.environ.get("SUPABASE_SERVICE_KEY", "").strip().strip("'").strip('"')
+    
+    # If service key is missing, fall back to standard client as a safety net
+    if not service_key:
+        print("⚠️ WARNING: SUPABASE_SERVICE_KEY not set — falling back to standard client.")
+        return get_supabase()
+        
+    _supabase_admin_client = create_client(url, service_key)
+    return _supabase_admin_client
