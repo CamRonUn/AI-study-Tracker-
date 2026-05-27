@@ -22,11 +22,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 ph = PasswordHasher()
 
 ###OAuth2 Configuration
-google_client_id = os.getenv("google_client_id")
-google_client_secret = os.getenv("google_client_secret")
+google_client_id = os.environ.get("google_client_id")
+google_client_secret = os.environ.get("google_client_secret")
 google_redirect_uri = "http://localhost:8000/oauth/google/callback"
-secretkey = os.getenv("Secret_Key")
-Algorithm = os.getenv("Algorithm")
+secretkey = os.environ.get("Secret_Key")
+Algorithm = os.environ.get("Algorithm")
 token_expire_minutes = 120
 class User(BaseModel):
     email: str | None = None

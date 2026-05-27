@@ -5,7 +5,7 @@ from google import genai
 load_dotenv()
 
 # The client is now inside 'genai'
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 async def generate_chat_response(prompt: str):
     try:

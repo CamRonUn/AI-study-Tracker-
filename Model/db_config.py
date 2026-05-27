@@ -4,9 +4,16 @@ import os
 
 load_dotenv()
 
-url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_KEY")               # anon key — used for reads
-service_key = os.getenv("SUPABASE_SERVICE_KEY")  # service role key — bypasses RLS for writes
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_KEY")
+service_key = os.environ.get("SUPABASE_SERVICE_KEY")
+
+# 🚨 THE SAFETY CHECK: Print debug info to Render logs to see exactly what is missing
+if not url or not key:
+    print(f"❌ DEPLOYMENT ERROR: Missing keys! URL present: {bool(url)}, Key present: {bool(key)}")
+    # Clean up any accidental whitespace or quote bugs if they managed to sneak into the strings
+    if url: url = url.strip().strip("'").strip('"')
+    if key: key = key.strip().strip("'").strip('"') # service role key — bypasses RLS for writes
 
 supabase: Client = create_client(url, key)
 
