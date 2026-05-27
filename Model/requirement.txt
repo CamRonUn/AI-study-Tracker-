@@ -1,0 +1,66 @@
+# ============================================================
+# use this file to install all backend dependencies at once
+#
+# HOW TO INSTALL:
+#   pip install -r requirements.txt
+#
+# -- NOTE --
+#
+# If you don't have one, please make a (.env) file in /MVP/Model/ with the below format:
+#
+#   SUPABASE_URL=https://xxxx.supabase.co
+#   SUPABASE_KEY=sb_publishable_...      <- get this from Supabase dashboard > Settings > API
+#   GEMINI_API_KEY=...
+#   google_client_id=...
+#   google_client_secret=...
+#   Secret_Key=any_long_random_string
+#   Algorithm=HS256
+#
+# -- DEPENDENCY NOTES (for future reference) --
+#
+#   supabase >= 2.11.0  requires httpx >=0.26, <0.29
+#   google-genai 1.5.0  requires httpx >=0.28.1
+#   -> httpx==0.28.1 is the only version satisfying both — do NOT change this
+#
+#   supabase >= 2.11.0 also supports the new sb_publishable_... key format.
+#   Do NOT downgrade supabase below 2.11.0 or the key will be rejected.
+#
+# ============================================================
+
+# Web framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9      # Required by FastAPI for form data (login uses OAuth2 form)
+
+# Database (Supabase)
+# Must be >= 2.11.0 to support new sb_publishable key format and httpx <0.29
+supabase==2.11.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0  # JWT encode/decode
+argon2-cffi==23.1.0               # Password hashing
+itsdangerous==2.2.0               # Session serialization
+passlib[bcrypt]==1.7.4            # Password utility (used with OAuth2)
+
+# HTTP client
+# Pinned to 0.28.1 — sweet spot between supabase (<0.29) and google-genai (>=0.28.1)
+httpx==0.28.1
+
+# Google APIs (Calendar + OAuth)
+google-auth==2.34.0
+google-api-python-client==2.147.0
+
+# AI (Gemini)
+google-genai==1.5.0
+
+# Async — google-genai requires anyio >= 4.8.0
+anyio>=4.8.0
+
+# Environment variables
+python-dotenv==1.0.1
+
+# Email validation (used in Pydantic models with EmailStr)
+email-validator==2.2.0
+
+# Pydantic
+pydantic[email]==2.8.2
