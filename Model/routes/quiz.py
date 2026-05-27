@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends 
-from db_config import supabase, supabase_admin
 from datetime import date
 from routes.helpers.gemini_config import generate_chat_response
 from pydantic import BaseModel
@@ -22,6 +21,7 @@ class QuizAnswers(BaseModel):
 @router.post("/newquiz")
 async def newQuiz(payload: QuizRequest, current_user=Depends(get_current_user)):
     try:
+        supabase = get_supabase()
         course_name = payload.course
         start_Date = payload.start_date or "the beginning of semester"
         todays_Date = date.today()
@@ -63,6 +63,7 @@ async def newQuiz(payload: QuizRequest, current_user=Depends(get_current_user)):
 @router.post("/evaluate")
 async def evaluateQuiz(payload: QuizAnswers, current_user=Depends(get_current_user)):
     try:
+        supabase = get_supabase()
         print("start eval function")
         # Get email from JWT token — this is what satisfies the RLS policy
         user_email = current_user[0]["email"]
@@ -73,7 +74,7 @@ async def evaluateQuiz(payload: QuizAnswers, current_user=Depends(get_current_us
                 score += 1
 
         # Insert the row immediately — summary will be filled in background
-        response = supabase_admin.table("quiz_results").insert({
+        response = supabase.table("quiz_results").insert({
             "user_email": user_email,
             "subject": payload.subject,
             "score": score,
@@ -84,7 +85,7 @@ async def evaluateQuiz(payload: QuizAnswers, current_user=Depends(get_current_us
 
         # Save individual question results
         for i, (key, question) in enumerate(payload.answers.items(), start=1):
-            supabase_admin.table("quiz_results").update({
+            supabase.table("quiz_results").update({
                 f"question_{i}": question.get("question"),
                 f"useranswer_{i}": question.get("userAnswer"),
                 f"correctanswer_{i}": question.get("correctAnswer"),
@@ -102,7 +103,7 @@ async def evaluateQuiz(payload: QuizAnswers, current_user=Depends(get_current_us
             new_priority = "Low"
 
         # Update all incomplete calendar events for this course
-        supabase_admin.table("calendar_events") \
+        supabase.table("calendar_events") \
             .update({"priority": new_priority}) \
             .eq("user_email", user_email) \
             .eq("completed", False) \
@@ -131,6 +132,7 @@ async def evaluateQuiz(payload: QuizAnswers, current_user=Depends(get_current_us
 async def _generate_summary_and_recommendations(result_id, answers, subject, current_user):
     """Background task — generates AI summary and recommendations after evaluate returns."""
     try:
+        supabase = get_supabase()
         # Build readable quiz summary for Gemini
         question_lines = []
         for key, question in answers.items():
@@ -153,7 +155,7 @@ async def _generate_summary_and_recommendations(result_id, answers, subject, cur
         summary = await generate_chat_response(prompt)
 
         # Update the row with the real summary
-        supabase_admin.table("quiz_results").update({
+        supabase.table("quiz_results").update({
             "summary": summary
         }).eq("id", result_id).execute()
 
@@ -170,7 +172,7 @@ async def _generate_summary_and_recommendations(result_id, answers, subject, cur
         print("Background summary/recommendations error:", e)
         # Update the row with a fallback message so the user isn't stuck on "Generating..."
         try:
-            supabase_admin.table("quiz_results").update({
+            supabase.table("quiz_results").update({
                 "summary": "Summary unavailable. Check your weak areas and keep practising!"
             }).eq("id", result_id).execute()
         except Exception:
@@ -179,12 +181,13 @@ async def _generate_summary_and_recommendations(result_id, answers, subject, cur
 
 @router.get("/result/{result_id}")
 async def getResult(result_id: int, current_user=Depends(get_current_user)):
+    supabase = get_supabase()
     """
     Frontend polls this endpoint after evaluate returns.
     Returns the summary once Gemini has finished generating it.
     """
     try:
-        response = supabase_admin.table("quiz_results").select("summary, score").eq("id", result_id).execute()
+        response = supabase.table("quiz_results").select("summary, score").eq("id", result_id).execute()
         if not response.data:
             return {"summary": None, "score": None, "ready": False}
         row = response.data[0]

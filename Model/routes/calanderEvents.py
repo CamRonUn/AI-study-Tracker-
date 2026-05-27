@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends 
-from db_config import supabase_admin
 from routes.oauth import get_current_user
 from pydantic import BaseModel
 from datetime import date
@@ -20,8 +19,9 @@ class update(BaseModel):
 @router.get("/get")
 def get_calendar_events(current_user = Depends(get_current_user)):
     try:
+        supabase = get_supabase()
         user_email = current_user[0]["email"]
-        response = supabase_admin.table("calendar_events").select("*").eq("user_email", user_email).execute().data
+        response = supabase.table("calendar_events").select("*").eq("user_email", user_email).execute().data
         return response
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -29,13 +29,14 @@ def get_calendar_events(current_user = Depends(get_current_user)):
 @router.post("/addSingle")
 def get_calendar_events(payload: newEvent,current_user = Depends(get_current_user)):
     try:
+        supabase = get_supabase()
         event = payload.event
         user_email = current_user[0]["email"]
         event["user_email"] = user_email
         print(event)
-        message = supabase_admin.table("calendar_events").insert(event).execute()
+        message = supabase.table("calendar_events").insert(event).execute()
         print(message)
-        response = supabase_admin.table("calendar_events").select("*").eq("user_email", user_email).execute().data
+        response = supabase.table("calendar_events").select("*").eq("user_email", user_email).execute().data
         return response
     except Exception as e:
         print("\n❌ DATABASE INSERT FAILED DETAILED ERROR:")
@@ -46,9 +47,10 @@ def get_calendar_events(payload: newEvent,current_user = Depends(get_current_use
 @router.delete("/delete")
 def delete_calendar_events(payload: eventID,current_user = Depends(get_current_user)):
     try:
+        supabase = get_supabase()
         user_email = current_user[0]["email"]
-        supabase_admin.table("calendar_events").delete().eq("id", payload.id).eq("user_email", user_email).execute()
-        response = supabase_admin.table("calendar_events").select("*").eq("user_email", user_email).execute().data
+        supabase.table("calendar_events").delete().eq("id", payload.id).eq("user_email", user_email).execute()
+        response = supabase.table("calendar_events").select("*").eq("user_email", user_email).execute().data
         return response
     except:
         return "failed"
@@ -56,9 +58,10 @@ def delete_calendar_events(payload: eventID,current_user = Depends(get_current_u
 @router.put("/update")
 def update_calendar_events(payload: update, current_user = Depends(get_current_user)):
     try:
+        supabase = get_supabase()
         user_email = current_user[0]["email"]
-        supabase_admin.table("calendar_events").update(payload.updates).eq("id", payload.id).eq("user_email", user_email).execute()
-        response = supabase_admin.table("calendar_events").select("*").eq("user_email", user_email).execute().data
+        supabase.table("calendar_events").update(payload.updates).eq("id", payload.id).eq("user_email", user_email).execute()
+        response = supabase.table("calendar_events").select("*").eq("user_email", user_email).execute().data
         return response
     except Exception as e:
         print("\n❌ DATABASE Update FAILED DETAILED ERROR:")

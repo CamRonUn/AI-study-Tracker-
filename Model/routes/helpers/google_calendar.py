@@ -1,7 +1,6 @@
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials 
 from fastapi import HTTPException
-from db_config import supabase
 from ..oauth import get_current_user
 
 def get_calander_events(auth):

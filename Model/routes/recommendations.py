@@ -11,6 +11,7 @@ router = APIRouter()
 
 @router.post("/generate")
 async def generate_recommendations(current_user):
+    supabase = get_supabase()
     """
     Pulls the user's last 2 quiz results, sends them to Gemini,
     deletes their existing AI-generated calendar events, and inserts the new ones.
@@ -21,7 +22,7 @@ async def generate_recommendations(current_user):
 
         # 1. Grab the user's two most recent quiz results
         results = (
-            supabase_admin.table("quiz_results")
+            supabase.table("quiz_results")
             .select("*")
             .eq("user_email", user_email)
             .order("id", desc=True)
@@ -83,7 +84,7 @@ Example format:
         events = json.loads(cleaned)
 
         # 2. Delete existing AI-generated events for this user
-        supabase_admin.table("calendar_events").delete().eq("user_email", user_email).eq(
+        supabase.table("calendar_events").delete().eq("user_email", user_email).eq(
             "ai_generated", True
         ).execute()
 
@@ -104,7 +105,7 @@ Example format:
             for e in events
         ]
         print("added tasks to db")
-        inserted = supabase_admin.table("calendar_events").insert(rows).execute()
+        inserted = supabase.table("calendar_events").insert(rows).execute()
 
         return {"status": "success", "events_created": len(inserted.data)}
 

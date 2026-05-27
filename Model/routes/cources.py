@@ -6,7 +6,6 @@
 #   still send plain strings won't break. The backend handles both formats.
 
 from fastapi import APIRouter, Depends 
-from db_config import supabase, supabase_admin
 from routes.oauth import get_current_user
 from pydantic import BaseModel
 from datetime import date
@@ -35,8 +34,9 @@ def get_courses(current_user = Depends(get_current_user)):
     Returns both Course_code and Course_name.
     """
     try: 
+        supabase = get_supabase()
         user_email = current_user[0]["email"]
-        courses = supabase_admin.table("users_Courses") \
+        courses = supabase.table("users_Courses") \
             .select("*") \
             .eq("user_email", user_email) \
             .execute().data
@@ -54,19 +54,20 @@ def add_courses(courses: CourseSelection, current_user = Depends(get_current_use
     If code is empty, falls back to uppercased name as the code.
     """
     try:
+        supabase = get_supabase()
         if not current_user or len(current_user) == 0:
             return {"status": "error", "message": "User context not found"}
             
         user_email = current_user[0]["email"]
 
         # Delete all existing courses for this user (admin bypasses RLS)
-        supabase_admin.table("users_Courses").delete().eq("user_email", user_email).execute()
+        supabase.table("users_Courses").delete().eq("user_email", user_email).execute()
         
         # Re-insert with both code and name
         for course in courses.picked:
             # Fallback: if code is empty (sent by older frontend), derive it from name
             course_code = course.code.strip() if course.code.strip() else course.name.upper()
-            supabase_admin.table("users_Courses").insert({
+            supabase.table("users_Courses").insert({
                 "user_email": user_email,
                 "Course_code": course_code,
                 "Course_name": course.name,
