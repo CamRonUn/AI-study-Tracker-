@@ -14,6 +14,9 @@ if key:
 if service_key: 
     service_key = service_key.strip().strip("'").strip('"')
 
+_supabase_client = None
+_supabase_admin_client = None
+
 # 3. Explicitly crash with a helpful message if they are completely missing
 if not url or not key:
     raise ValueError(f"❌ DEPLOYMENT CRASH: Keys completely missing! URL present: {bool(url)}, Key present: {bool(key)}")
