@@ -14,7 +14,6 @@ import httpx
 from fastapi.responses import RedirectResponse
 import anyio 
 
-load_dotenv()
 
 router = APIRouter()
 
