@@ -163,6 +163,8 @@ def get_profile(current_user = Depends(get_current_user)):
 @router.get("/emailexists/{email}")
 def check_email_exists(email: str):
     supabase = get_supabase()
+    key_used = os.environ.get("SUPABASE_KEY", "MISSING")
+    print(f"KEY LENGTH: {len(key_used)}, STARTS WITH: {key_used[:10]}")
     if supabase.table("users").select("*").eq("email", email.lower()).limit(1).execute().data:
         return True
     else:
