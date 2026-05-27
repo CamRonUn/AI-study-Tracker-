@@ -10,23 +10,18 @@ import os
 from argon2 import PasswordHasher, exceptions 
 from datetime import datetime, timedelta
 import jwt
-import httpx
-from fastapi.responses import RedirectResponse
 import anyio 
-
 
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 ph = PasswordHasher()
 
-###OAuth2 Configuration
-google_client_id = os.environ.get("google_client_id")
-google_client_secret = os.environ.get("google_client_secret")
-google_redirect_uri = "http://localhost:8000/oauth/google/callback"
+### Security Configuration
 secretkey = os.environ.get("Secret_Key")
 Algorithm = os.environ.get("Algorithm")
 token_expire_minutes = 120
+
 class User(BaseModel):
     email: str | None = None
     full_name: str | None = None
@@ -58,13 +53,12 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 
 # note (25/05/2026): added new model for PATCH /profile endpoint.
-
 class UserUpdate(BaseModel):
     full_name: str  # <- new display name from SettingsScreen
     degree: str     # <- new major/degree from SettingsScreen
 
 
-####Security Functions 
+#### Security Functions 
 def verify_pwd(plain_pwd: str, hashed_pwd: str) -> bool:
     try:
         if plain_pwd == "OAUTH_USER":
@@ -98,17 +92,16 @@ def verify_token(token:str) -> TokenData:
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="incorrect user", headers={"WWW-Authenticate": "Bearer"})
 
-#Auth Dependencies 
+
+#### Auth Dependencies 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     token_data = verify_token(token)
     
-    # 2. Run the blocking Supabase database call inside a safe, unblocked threadpool worker
-    # This prevents the underlying HTTP/2 transport from clashing with the event loop
     try:
         supabase = get_supabase()
         response = await anyio.to_thread.run_sync(
             lambda: supabase.table("users")
-            .select("email", "full_name", "degree", "role", "google_access_token")
+            .select("email", "full_name", "degree", "role")
             .eq("email", token_data.email)
             .limit(1)
             .execute()
@@ -118,18 +111,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         print(f"Supabase connection error: {e}")
         raise HTTPException(status_code=503, detail="Database connection temporary error")
 
-    if not user: # safe truthy validation for lists
+    if not user: 
         raise HTTPException(status_code=401, detail="user does not exist", headers={"WWW-Authenticate": "Bearer"})
         
     return user
-    
+
+
+#### Endpoints
 @router.post("/register", response_model=Token)
 def register_user(user: UserCreate):
     supabase = get_supabase()
     if supabase.table("users").select("*").eq("email", user.email).limit(1).execute().data:
         raise HTTPException(status_code=400, detail="User Already Exists", headers={"WWW-Authenticate": "Bearer"})
     elif user.password == "OAUTH_USER":
-            raise HTTPException(status_code=400, detail="Invalid password", headers={"WWW-Authenticate": "Bearer"})
+        raise HTTPException(status_code=400, detail="Invalid password", headers={"WWW-Authenticate": "Bearer"})
     else: 
         hashed_password = get_pwd_hash(user.password)
         db_user = User(
@@ -161,34 +156,23 @@ def login_for_acess_token(form_data: OAuth2PasswordRequestForm = Depends()):
         )
         return {"access_token":access_token, "token_type": "bearer"}
 
-@router.get("/google/login")
-async def login_google():
-    # Adding calendar scope and access_type=offline
-    scope = "openid profile email https://www.googleapis.com/auth/calendar.events"
-    return RedirectResponse(
-        f"https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={google_client_id}&redirect_uri={google_redirect_uri}&scope={scope}&access_type=offline&prompt=consent"
-    )
-
-
 @router.get("/profile")
 def get_profile(current_user = Depends(get_current_user)):
-    supabase = get_supabase()
     return current_user[0]
 
 @router.get("/emailexists/{email}")
-def check_email_exists(email):
+def check_email_exists(email: str):
     supabase = get_supabase()
-    if supabase.table("users").select("*").eq("email", email).limit(1).execute().data:
+    if supabase.table("users").select("*").eq("email", email.lower()).limit(1).execute().data:
         return True
     else:
         return False
 
-# note (25/05/2026): new endpoint to update user's profile information (full name and degree) from the SettingsScreen.
 @router.patch("/profile")
 async def update_profile(updates: UserUpdate, current_user = Depends(get_current_user)):
     try:
         supabase = get_supabase()
-        user_email = current_user[0]["email"]  # get email from the authenticated user
+        user_email = current_user[0]["email"]
         await anyio.to_thread.run_sync(
             lambda: supabase.table("users")
             .update({"full_name": updates.full_name, "degree": updates.degree})
@@ -199,4 +183,3 @@ async def update_profile(updates: UserUpdate, current_user = Depends(get_current
     except Exception as e:
         print(f"Profile update error: {e}")
         raise HTTPException(status_code=500, detail="Failed to update profile")
- 
