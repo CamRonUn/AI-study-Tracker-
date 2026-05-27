@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from routes.oauth import get_current_user 
 from routes.recommendations import generate_recommendations
 import asyncio
+from db_config import get_supabase
 
 router = APIRouter()
 

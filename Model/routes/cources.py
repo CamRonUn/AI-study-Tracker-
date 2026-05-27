@@ -10,6 +10,7 @@ from db_config import supabase, supabase_admin
 from routes.oauth import get_current_user
 from pydantic import BaseModel
 from datetime import date
+from db_config import get_supabase
 
 
 router = APIRouter()

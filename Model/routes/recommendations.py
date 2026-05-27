@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
-from db_config import supabase_admin
 from routes.oauth import get_current_user
 from routes.helpers.gemini_config import generate_chat_response
 from datetime import date
 import json
 import re
+from db_config import get_supabase
 
 router = APIRouter()
 

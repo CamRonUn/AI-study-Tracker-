@@ -13,6 +13,7 @@ import jwt
 import httpx
 from fastapi.responses import RedirectResponse
 import anyio 
+from db_config import get_supabase
 
 
 router = APIRouter()
